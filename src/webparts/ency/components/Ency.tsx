@@ -2,6 +2,7 @@ import * as React from 'react';
 import { IEncyProps } from './IEncyProps';
 import { escape } from '@microsoft/sp-lodash-subset';
 import * as sjcl from 'sjcl';
+import { PrimaryButton } from 'office-ui-fabric-react/lib/Button';
 
 export default class Ency extends React.Component<IEncyProps, {}> {
 
@@ -46,7 +47,7 @@ export default class Ency extends React.Component<IEncyProps, {}> {
 
     return (
       <div>
-        {/* <PrimaryButton></PrimaryButton> */}
+        {/* <PrimaryButton ></PrimaryButton> */}
       </div>
     );
   }

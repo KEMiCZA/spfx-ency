@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
 import { ApplicationStatus } from '../../../stores/AppStore';
 import CreateList from './listcreation/CreateList';
+import Chat from './Chat';
 
 @inject(Stores.AppStore, Stores.ConfigurationStore)
 @observer
@@ -14,13 +15,15 @@ export default class EncyManager extends React.Component<DefaultStoreProps, {}> 
     switch (status) {
       case ApplicationStatus.Initializing:
         return (<div>"Loading..."</div>);
+      case ApplicationStatus.WaitingForParty:
       case ApplicationStatus.CreateList:
         return (
           <CreateList></CreateList>
         );
       case ApplicationStatus.ChatReady:
-        return (<p>RENDER CHAT PROGRAM</p>);
+        return (<Chat></Chat>);
       default:
+        return (<p>Unkown status</p>);
     }
   }
 }

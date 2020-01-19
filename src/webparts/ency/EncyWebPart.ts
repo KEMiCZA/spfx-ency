@@ -63,7 +63,6 @@ export default class EncyWebPart extends BaseClientSideWebPart<IEncyWebPartProps
         spfxContext: this.context
       });
 
-
       sp.web.get().then(x => {
         console.log(x);
       });

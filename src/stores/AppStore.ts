@@ -2,7 +2,6 @@ import { action, computed, observable, runInAction } from 'mobx';
 import { RootStore } from "./RootStore";
 import { sp } from '@pnp/sp';
 import '@pnp/sp/webs';
-// import { Web } from '@pnp/sp/webs';
 import '@pnp/sp/lists';
 import '@pnp/sp/items';
 import '@pnp/sp/subscriptions';
@@ -11,16 +10,20 @@ import '@pnp/sp/files';
 import '@pnp/sp/folders';
 import { Guid } from '@microsoft/sp-core-library';
 import { isEmpty } from '@microsoft/sp-lodash-subset';
-// import { isEmpty } from '@microsoft/sp-lodash-subset';
-
+import * as sjcl from 'sjcl';
 
 export enum ApplicationStatus {
     Initializing = "Initializing",
-    // ConfigureWebhookUrl = "Configure Webhook URL",
     CreateList = "Create List",
     WaitingForParty = "Waiting for party",
     ChatReady = "Chat Ready",
     Completed = "Completed"
+}
+
+export enum ChatInitializationStatus {
+    WaitingForPubKeyFromBob = "Waiting for public key retrieval from party",
+    WaitingForPubKeyFromAlice = "Waiting for public key retrieval by initiator",
+
 }
 
 export interface IWebhookItemCreationInfo {
@@ -42,26 +45,34 @@ export interface IWebhookItemInfo {
 }
 
 export enum SenderType {
-    Alice,
-    Bob
+    Alice = "Alice",
+    Bob = "Bob"
+}
+
+export interface IMessage {
+    fromType: SenderType;
+    from: string;
+    message: string;
+    created: Date;
+}
+
+export interface IMessageUpdateInfo {
+    encyval: string;
+    encytype: string;
 }
 
 export class AppStore {
-    private configListTitle: string;
+    private _encyvalFieldName = "encyval";
+    private _encySenderTypeFieldName = "encytype";
+
+    @observable private configListTitle: string;
     private currentItemId: number = 0;
 
     @observable public isLoadingConfiguration: boolean;
     @observable public isLoadingOtherStuff: boolean;
     @observable public status: ApplicationStatus;
-    @observable public items: IWebhookItemInfo[];
-    @observable public selectedItems: IWebhookItemInfo[];
-    @observable public isDeleteFormVisible: boolean;
-    @observable public formItem: IWebhookItemInfo;
-    /**
-     * Used for logging the deletion progress.
-     */
-    @observable public deletionProgress: string;
-    @observable public renewallProgress: string;
+    @observable public chatStatus: ChatInitializationStatus;
+    @observable public messages: IMessage[];
 
     @observable public senderType: SenderType;
 
@@ -71,8 +82,10 @@ export class AppStore {
      * We solve this by adding a setTimeout to set the creatingItem to false after 10 seconds
      */
     private _creatingItem: boolean;
-    private _deletingItems: boolean;
-    private _renewingItems: boolean;
+
+    private pub: sjcl.SjclElGamalPublicKey;
+    private secret: sjcl.SjclElGamalSecretKey;
+    private pubEnc: sjcl.SjclElGamalPublicKey;
 
     constructor(private rootStore: RootStore) {
 
@@ -83,24 +96,22 @@ export class AppStore {
         this._onCreateListSubscription = delegate;
     }
 
+    @computed
+    public get chatId(): string {
+        return this.configListTitle;
+    }
+
     @action
     private setInitialState(): void {
         this.status = ApplicationStatus.Initializing;
         this.senderType = SenderType.Alice;
 
-        this.items = [];
-        this.selectedItems = [];
-        this.formItem = null;
-        this.deletionProgress = "";
-        this.renewallProgress = "";
-        this.isDeleteFormVisible = false;
+        this.messages = [];
 
         this.isLoadingConfiguration = true;
         this.isLoadingOtherStuff = false;
 
         this._creatingItem = false;
-        this._deletingItems = false;
-        this._renewingItems = false;
     }
 
     @action
@@ -113,16 +124,20 @@ export class AppStore {
             this.configListTitle = cid;
             this.currentItemId = 0;
             this.senderType = SenderType.Bob;
+            this._onCreateListSubscription(cid);
         } else {
             this.senderType = SenderType.Alice;
         }
 
         if (!isEmpty(this.configListTitle)) {
-            const lists = await sp.web.lists.select("Id").filter(`Title eq '${this.configListTitle}'`)();
+            const lists = await sp.web.lists.select("Id").filter(`Id eq guid'${this.configListTitle}'`)();
             if (lists.length > 0) {
-                await this.getMessages();
-                const listId = lists[0].Id;
-                this._onCreateListSubscription(listId);
+                const items = await sp.web.lists.getById(this.configListTitle).items.get();
+                if (items.length === 1) {
+                    await this.getMessages();
+                } else {
+                    throw Error("Chat had already been initialized previously or by another party.");
+                }
             } else {
                 throw Error("List should exist?");
             }
@@ -138,28 +153,157 @@ export class AppStore {
     @action
     public getMessages = async () => {
 
-        // if (this._creatingItem || this._deletingItems || this._renewingItems)
-        //     return;
+        const list = sp.web.lists.getById(this.configListTitle);
 
-        if (this.currentItemId === 0) {
-            // 
+        if (this.status === ApplicationStatus.ChatReady) {
+            // Only fetch items from id currentItemId
+            const items = await list.items.select(`${this._encyvalFieldName},${this._encySenderTypeFieldName},Id`).filter(`Id gt ${this.currentItemId}`).get();
+
+            if (items.length === 0)
+                return;
+
+            this.currentItemId = items[items.length - 1].Id;
+            // Filter out only my messages
+            const newMessages = [...this.messages];
+
+            const decryptedItems = items
+                .filter(x => x[this._encySenderTypeFieldName] !== this.senderType)
+                .map((x): IMessage => {
+                    const decryptedMessage = sjcl.decrypt(this.secret, JSON.parse(x[this._encyvalFieldName]));
+                    return JSON.parse(decryptedMessage);
+                });
+
+            decryptedItems.forEach(element => {
+                newMessages.push(element);
+            });
+
+            runInAction(() => {
+                this.messages = newMessages;
+            });
+
+            // decryptedItems[0].
         }
-        else if (this.currentItemId === 1) {
+        else {
 
+            const items = await list.items.getAll();
+
+            if (items.length === 0) {
+                return;
+            }
+
+            else if (items.length === 1) {
+                // If we are Alice, we don't need to do anything
+                if (this.senderType === SenderType.Alice)
+                    return;
+
+                // If we are Bob we should generate our own public key and send it encrypted back to Alice
+
+                let pair = sjcl.ecc.elGamal.generateKeys(sjcl.ecc.curves.c256, 1);
+                let pubBob = pair.pub.get();
+                var pubHex = sjcl.codec.hex.fromBits(pubBob.x) + sjcl.codec.hex.fromBits(pubBob.y);
+
+                const item = await list.items.getById(1).get();
+                const pubKeyAliceHex = item[this._encyvalFieldName];
+
+                // In case a race condition where the encyval field has not been updated yet
+                if (isEmpty(pubKeyAliceHex))
+                    return;
+
+                const pubKeyAliceData = sjcl.codec.hex.toBits(pubKeyAliceHex);
+                const pubKeyAlice = new sjcl.ecc.elGamal.publicKey(sjcl.ecc.curves.c256, pubKeyAliceData);
+
+                const encryptedBobPublicKey = sjcl.encrypt(pubKeyAlice, pubHex);
+                const encryptedBobPublicKeyJson = JSON.stringify(encryptedBobPublicKey);
+
+                const firstItemPub = await list.rootFolder.files.add(Guid.newGuid().toString(), "X");
+                await (await firstItemPub.file.getItem()).update(<IMessageUpdateInfo>{
+                    encyval: encryptedBobPublicKeyJson
+                });
+
+                runInAction(() => {
+                    this.status = ApplicationStatus.WaitingForParty;
+                    this.pub = pair.pub;
+                    this.secret = pair.sec;
+                });
+
+            }
+            else if (items.length === 2) {
+                // If we are Bob, do nothing
+                if (this.senderType === SenderType.Bob)
+                    return;
+
+                // If we are Alice we should decrypt the public key of Bob and send a new Encrypted public key to Bob
+                const itemResp = await list.items.getById(2).get();
+
+                // In case a race condition where the encyval field has not been updated yet
+                if (isEmpty(itemResp[this._encyvalFieldName]))
+                    return;
+
+                const encryptedBobPublicKey: sjcl.SjclCipherEncrypted = JSON.parse(itemResp[this._encyvalFieldName] as string);
+
+                const publicKeyBobHex = sjcl.decrypt(this.secret, encryptedBobPublicKey);
+                const pubKeyBobData = sjcl.codec.hex.toBits(publicKeyBobHex);
+                const pubKeyBob = new sjcl.ecc.elGamal.publicKey(sjcl.ecc.curves.c256, pubKeyBobData);
+
+                const pair = sjcl.ecc.elGamal.generateKeys(sjcl.ecc.curves.c256, 1);
+                const pubAlice = pair.pub.get();
+                const pubAliceHex = sjcl.codec.hex.fromBits(pubAlice.x) + sjcl.codec.hex.fromBits(pubAlice.y);
+
+                const encryptedAlicePublicKey = sjcl.encrypt(pubKeyBob, pubAliceHex);
+                const encryptedAlicePublicKeyJSON = JSON.stringify(encryptedAlicePublicKey);
+
+                const item = await list.rootFolder.files.add(Guid.newGuid().toString(), "x");
+
+                await (await item.file.getItem()).update(<IMessageUpdateInfo>{
+                    encyval: encryptedAlicePublicKeyJSON
+                });
+
+                runInAction(() => {
+                    this.status = ApplicationStatus.WaitingForParty;
+                    this.pubEnc = pubKeyBob;
+                    this.pub = pair.pub;
+                    this.secret = pair.sec;
+                });
+
+            }
+            else if (items.length === 3) {
+                // If we are Alice don't do anything
+                if (this.senderType === SenderType.Alice)
+                    return;
+
+                // If we are Bob decrypt Alice's public key and we can start chatting
+                const itemResp = await list.items.getById(3).get();
+                const encryptedAlicePublicKey: sjcl.SjclCipherEncrypted = JSON.parse(itemResp[this._encyvalFieldName] as string);
+                const publicKeyAlice = sjcl.decrypt(this.secret, encryptedAlicePublicKey);
+
+                const pubKeyAliceData = sjcl.codec.hex.toBits(publicKeyAlice);
+                const pubKeyAlice = new sjcl.ecc.elGamal.publicKey(sjcl.ecc.curves.c256, pubKeyAliceData);
+
+                // Create another file to indicate we can start chatting for Bob
+                await list.rootFolder.files.add(Guid.newGuid().toString(), "ACK");
+                runInAction(() => {
+                    this.status = ApplicationStatus.ChatReady;
+                    this.pubEnc = pubKeyAlice;
+                    this.currentItemId = 4;
+                });
+
+            }
+            else if (items.length >= 4) {
+                if (this.senderType === SenderType.Bob)
+                    return;
+
+                runInAction(() => {
+                    this.status = ApplicationStatus.ChatReady;
+                    this.currentItemId = 4;
+                });
+            }
+
+            // runInAction(() => {
+            //     this.status = items.length >= 4 ? ApplicationStatus.ChatReady : ApplicationStatus.WaitingForParty;
+            //     this.currentItemId = items.length;
+            // });
         }
 
-        // Here we should fetch items only from currentId..
-        const items = await sp.web.lists.getByTitle(this.configListTitle).items.getAll();
-
-        runInAction(() => {
-            this.items = items;
-            this.status = ApplicationStatus.ChatReady;
-        });
-    }
-
-    @computed
-    public get isFormItemAvailable(): boolean {
-        return !(this.formItem === null || this.formItem === undefined);
     }
 
     @computed
@@ -167,30 +311,61 @@ export class AppStore {
         return this.isLoadingConfiguration || this.isLoadingOtherStuff;
     }
 
-    @computed
-    public get selectedItemsCount(): number {
-        return this.selectedItems.length;
-    }
-
-    @action
-    public setFormItem = (formItem: IWebhookItemInfo) => {
-        this.formItem = formItem;
-    }
-
-    @action
-    public clearFormItem = () => {
-        this.formItem = null;
-    }
-
     @action
     public createList = async (): Promise<void> => {
+        const listTitle = Guid.newGuid().toString();
 
-        await sp.web.lists.add(this.configListTitle, "Temp Document library used for exchanging encrypted messages", 101, true);
+        const listResponse = await sp.web.lists.add(listTitle, "Temp Document library used for exchanging encrypted messages", 101, true);
+
+        await listResponse.list.fields.addMultilineText(this._encyvalFieldName, 10, false, false, false, false);
+        await listResponse.list.fields.addText(this._encySenderTypeFieldName);
+
+        // Add the first public key
+        let pair = sjcl.ecc.elGamal.generateKeys(sjcl.ecc.curves.c256, 1);
+        let pub = pair.pub.get();
+
+        var public_key_hex = sjcl.codec.hex.fromBits(pub.x) + sjcl.codec.hex.fromBits(pub.y);
+
+        const item = await listResponse.list.rootFolder.files.add(Guid.newGuid().toString(), "x");
+
+        await (await item.file.getItem()).update(<IMessageUpdateInfo>{
+            encyval: public_key_hex
+        });
+
+        const chatId = listResponse.data.Id;
+        this._onCreateListSubscription(chatId);
 
         runInAction(() => {
             this.status = ApplicationStatus.WaitingForParty;
+            this.configListTitle = chatId;
+            this.pub = pair.pub;
+            this.secret = pair.sec;
         });
     }
 
+    @action
+    public sendMessage = async (message: string) => {
+        const list = sp.web.lists.getById(this.configListTitle);
+        const messageObj: IMessage = {
+            created: new Date(),
+            from: "",
+            fromType: this.senderType,
+            message: message
+        };
+
+        const encMessage = sjcl.encrypt(this.pubEnc, JSON.stringify(messageObj));
+        const encMessageJSON = JSON.stringify(encMessage);
+
+        const msg = await list.rootFolder.files.add(Guid.newGuid().toString(), "x");
+
+        await (await msg.file.getItem()).update(<IMessageUpdateInfo>{
+            encyval: encMessageJSON,
+            encytype: this.senderType.toString()
+        });
+
+        runInAction(() => {
+            this.messages.push(messageObj);
+        });
+    }
 
 }
