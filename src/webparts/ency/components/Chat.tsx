@@ -63,13 +63,16 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
                                         float: "right",
                                         width: "auto",
                                         maxWidth: "500px",
-                                        border: "1px solid grey",
+
                                         padding: "5px",
+                                        borderRadius: "15px"
                                     } : {
                                             float: "left",
-                                            width: "300px",
-                                            border: "1px solid grey",
+                                            width: "auto",
+                                            maxWidth: "500px",
+
                                             padding: "5px",
+                                            borderRadius: "15px"
                                         }
                                 }
                             }
