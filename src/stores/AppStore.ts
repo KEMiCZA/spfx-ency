@@ -56,6 +56,13 @@ export interface IMessage {
     created: Date;
 }
 
+export interface IMessageCreationInfo {
+    fromType: SenderType;
+    from: string;
+    message: string;
+    created: string;
+}
+
 export interface IMessageUpdateInfo {
     encyval: string;
     encytype: string;
@@ -75,6 +82,7 @@ export class AppStore {
     @observable public messages: IMessage[];
 
     @observable public senderType: SenderType;
+    @observable public currentUsersDisplayName: string;
 
     private _onCreateListSubscription: (id: string) => void;
     /**
@@ -115,11 +123,11 @@ export class AppStore {
     }
 
     @action
-    public init = async () => {
-        // const { isValidWebhookGatewayUrl } = this.rootStore.configStore;
+    public init = async (userDisplayName: string) => {
+        this.currentUsersDisplayName = userDisplayName;
 
-        var url = new URL(window.location.href);
-        var cid = url?.searchParams?.get("cid");
+        const url = new URL(window.location.href);
+        const cid = url?.searchParams?.get("cid");
         if (!isEmpty(cid)) {
             this.configListTitle = cid;
             this.currentItemId = 0;
@@ -162,26 +170,26 @@ export class AppStore {
             if (items.length === 0)
                 return;
 
+            // If the metadata is not yet updated on the file
+            if (items.filter(x => x[this._encySenderTypeFieldName] === null).length > 0)
+                return;
+
             this.currentItemId = items[items.length - 1].Id;
             // Filter out only my messages
             const newMessages = [...this.messages];
 
-            const decryptedItems = items
+            items
                 .filter(x => x[this._encySenderTypeFieldName] !== this.senderType)
-                .map((x): IMessage => {
+                .forEach(x => {
                     const decryptedMessage = sjcl.decrypt(this.secret, JSON.parse(x[this._encyvalFieldName]));
-                    return JSON.parse(decryptedMessage);
+                    const msg = JSON.parse(decryptedMessage);
+                    msg.created = new Date(msg.created);
+                    newMessages.push(msg);
                 });
-
-            decryptedItems.forEach(element => {
-                newMessages.push(element);
-            });
 
             runInAction(() => {
                 this.messages = newMessages;
             });
-
-            // decryptedItems[0].
         }
         else {
 
@@ -348,12 +356,16 @@ export class AppStore {
         const list = sp.web.lists.getById(this.configListTitle);
         const messageObj: IMessage = {
             created: new Date(),
-            from: "",
+            from: this.currentUsersDisplayName,
             fromType: this.senderType,
             message: message
         };
 
-        const encMessage = sjcl.encrypt(this.pubEnc, JSON.stringify(messageObj));
+        const encMessage = sjcl.encrypt(this.pubEnc, JSON.stringify(<IMessageCreationInfo>{
+            ...messageObj,
+            created: messageObj.created.toISOString(),
+        }));
+
         const encMessageJSON = JSON.stringify(encMessage);
 
         const msg = await list.rootFolder.files.add(Guid.newGuid().toString(), "x");

@@ -1,25 +1,17 @@
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
 import { Version } from '@microsoft/sp-core-library';
-import {
-  IPropertyPaneConfiguration,
-  PropertyPaneTextField
-} from '@microsoft/sp-property-pane';
+import { IPropertyPaneConfiguration, PropertyPaneTextField } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import * as strings from 'EncyWebPartStrings';
-import Ency from './components/Ency';
-import { IEncyProps } from './components/IEncyProps';
 import * as sjcl from 'sjcl';
 import { RootStore } from '../../stores/RootStore';
 import EncyProvider from './EncyProvider';
 import { configure } from 'mobx';
-import { ListSubscriptionFactory, IListSubscription } from '@microsoft/sp-list-subscription';
+import { ListSubscriptionFactory } from '@microsoft/sp-list-subscription';
 import { Guid } from '@microsoft/sp-core-library';
-
 import { sp } from "@pnp/sp";
-import "@pnp/sp/webs";
-// import "@pnp/sp/"
-// import { sp } from "@pnp/sp/presets/all";
+
 configure({ enforceActions: "always" });
 export interface IEncyWebPartProps {
   description: string;
@@ -62,12 +54,8 @@ export default class EncyWebPart extends BaseClientSideWebPart<IEncyWebPartProps
       sp.setup({
         spfxContext: this.context
       });
-
-      sp.web.get().then(x => {
-        console.log(x);
-      });
-
-      init();
+      
+      init(this.context.pageContext.user.displayName);
     });
   }
 
@@ -75,9 +63,6 @@ export default class EncyWebPart extends BaseClientSideWebPart<IEncyWebPartProps
     super();
     sjcl.random.addEventListener('seeded', () => { });
     sjcl.random.startCollectors();
-
-    const randomWords = sjcl.random.randomWords(1337, 1);
-    sjcl.random.addEntropy(randomWords, 1024, "crypto.getRandomValues");
   }
 
   public render(): void {

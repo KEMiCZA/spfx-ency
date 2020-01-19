@@ -11,6 +11,7 @@ export default class EncyManager extends React.Component<DefaultStoreProps, {}> 
 
   public render(): React.ReactElement<DefaultStoreProps> {
     const { status } = this.props.appStore;
+    return (<Chat></Chat>);
 
     switch (status) {
       case ApplicationStatus.Initializing:
