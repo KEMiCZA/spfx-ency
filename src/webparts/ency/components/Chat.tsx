@@ -9,7 +9,7 @@ import { Text } from 'office-ui-fabric-react/lib/Text';
 import { SenderType, IMessage } from '../../../stores/AppStore';
 
 const verticalStackProps: IStackProps = {
-    styles: { root: { overflow: 'hidden', width: '100%' } },
+    styles: { root: { overflow: 'hidden', width: '95%' } },
     tokens: { childrenGap: 20 }
 };
 
@@ -39,10 +39,10 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
 
     public render(): React.ReactElement<DefaultStoreProps> {
         const { message, sendingMessage } = this.state;
-        // const { messages, senderType } = this.props.appStore;
+        const { messages, senderType } = this.props.appStore;
 
-        let senderType = SenderType.Alice;
-        let messages = this.messages;
+        // let senderType = SenderType.Alice;
+        // let messages = this.messages;
 
         return (
             <>
@@ -63,16 +63,18 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
                                         float: "right",
                                         width: "auto",
                                         maxWidth: "500px",
-
+                                        marginRight: "10px",
                                         padding: "5px",
-                                        borderRadius: "15px"
+                                        borderRadius: "15px",
+                                        boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
                                     } : {
                                             float: "left",
                                             width: "auto",
                                             maxWidth: "500px",
-
+                                            marginLeft: "10px",
                                             padding: "5px",
-                                            borderRadius: "15px"
+                                            borderRadius: "15px",
+                                            boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
                                         }
                                 }
                             }
