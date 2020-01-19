@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "ency-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/ency/EncyWebPart.js",
+          "manifest": "./src/webparts/ency/EncyWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "EncyWebPartStrings": "lib/webparts/ency/loc/{locale}.js"
+  }
+}
