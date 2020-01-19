@@ -4,7 +4,6 @@ import { sp } from '@pnp/sp';
 import '@pnp/sp/webs';
 import '@pnp/sp/lists';
 import '@pnp/sp/items';
-import '@pnp/sp/subscriptions';
 import '@pnp/sp/fields';
 import '@pnp/sp/files';
 import '@pnp/sp/folders';
@@ -71,32 +70,20 @@ export interface IMessageUpdateInfo {
 export class AppStore {
     private _encyvalFieldName = "encyval";
     private _encySenderTypeFieldName = "encytype";
-
-    @observable private configListTitle: string;
-    private currentItemId: number = 0;
-
-    @observable public isLoadingConfiguration: boolean;
-    @observable public isLoadingOtherStuff: boolean;
-    @observable public status: ApplicationStatus;
-    @observable public chatStatus: ChatInitializationStatus;
-    @observable public messages: IMessage[];
-
-    @observable public senderType: SenderType;
-    @observable public currentUsersDisplayName: string;
-
-    private _onCreateListSubscription: (id: string) => void;
-    /**
-     * Since we are using list notifications we need to make sure to not reload our list when creating a new item
-     * We solve this by adding a setTimeout to set the creatingItem to false after 10 seconds
-     */
-    private _creatingItem: boolean;
-
     private pub: sjcl.SjclElGamalPublicKey;
     private secret: sjcl.SjclElGamalSecretKey;
     private pubEnc: sjcl.SjclElGamalPublicKey;
+    private currentItemId: number = 0;
+    private _onCreateListSubscription: (id: string) => void;
+
+    @observable private configListTitle: string;
+    @observable public status: ApplicationStatus;
+    @observable public chatStatus: ChatInitializationStatus;
+    @observable public messages: IMessage[];
+    @observable public senderType: SenderType;
+    @observable public currentUsersDisplayName: string;
 
     constructor(private rootStore: RootStore) {
-
         this.setInitialState();
     }
 
@@ -113,13 +100,7 @@ export class AppStore {
     private setInitialState(): void {
         this.status = ApplicationStatus.Initializing;
         this.senderType = SenderType.Alice;
-
         this.messages = [];
-
-        this.isLoadingConfiguration = true;
-        this.isLoadingOtherStuff = false;
-
-        this._creatingItem = false;
     }
 
     @action
@@ -312,11 +293,6 @@ export class AppStore {
             // });
         }
 
-    }
-
-    @computed
-    public get isInitializing(): boolean {
-        return this.isLoadingConfiguration || this.isLoadingOtherStuff;
     }
 
     @action
