@@ -1,12 +1,14 @@
 import { inject, observer } from 'mobx-react';
+import { toJS } from 'mobx';
 import * as React from 'react';
 import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
-import { PrimaryButton } from 'office-ui-fabric-react/lib/Button';
-import { Stack, IStackProps } from 'office-ui-fabric-react/lib/Stack';
-import { MessageBar, MessageBarType } from 'office-ui-fabric-react/lib/MessageBar';
+import { PrimaryButton, DefaultButton } from 'office-ui-fabric-react/lib/Button';
+import { Stack, IStackProps, IStackTokens } from 'office-ui-fabric-react/lib/Stack';
+import { MessageBar, MessageBarType, IMessageBarStyleProps, IMessageBarStyles } from 'office-ui-fabric-react/lib/MessageBar';
 import { Text } from 'office-ui-fabric-react/lib/Text';
 import { SenderType, IMessage } from '../../../stores/AppStore';
+import { IStyleFunctionOrObject } from 'office-ui-fabric-react/lib/Utilities';
 
 const verticalStackProps: IStackProps = {
     styles: { root: { overflow: 'hidden', width: '95%' } },
@@ -47,53 +49,49 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
         return (
             <>
                 <Stack {...verticalStackProps}>
-                    {messages.map(x => {
-
-                        return <MessageBar
-                            styles={
-                                {
-                                    icon: null,
-                                    iconContainer: {
-                                        display: "none"
-                                    },
-                                    content: {
-                                        whiteSpace: "pre-line"
-                                    },
-                                    root: senderType === x.fromType ? {
-                                        float: "right",
-                                        width: "auto",
-                                        maxWidth: "500px",
-                                        marginRight: "10px",
-                                        padding: "5px",
-                                        borderRadius: "15px",
-                                        boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
-                                    } : {
-                                            float: "left",
-                                            width: "auto",
-                                            maxWidth: "500px",
-                                            marginLeft: "10px",
-                                            padding: "5px",
-                                            borderRadius: "15px",
-                                            boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
-                                        }
-                                }
-                            }
-                            isMultiline
-                            messageBarType={senderType === x.fromType ? MessageBarType.success : MessageBarType.info}>
-                            <Text variant={'large'} >{x.message}</Text>
-                            <p></p>
-                            <Text variant={'small'} >{x.created.toLocaleTimeString()} by {x.from}</Text>
-                        </MessageBar>;
-
+                    {toJS(messages.sort((x, y) => x.created.getTime() - y.created.getTime())).map(x => {
+                        const isMyMsg: boolean = senderType === x.fromType;
+                        return (
+                            <MessageBar
+                                styles={this.chatStyles(isMyMsg)}
+                                isMultiline
+                                messageBarType={isMyMsg ? MessageBarType.success : MessageBarType.info}>
+                                <Text variant={'large'} >{x.message}</Text>
+                                <p></p>
+                                <Text variant={'small'} >{x.created.toLocaleTimeString()} by {x.from}</Text>
+                            </MessageBar>);
                     })}
 
                     <TextField placeholder={"Type a message"} value={message} onChange={(t, v) => this.setState({ message: v })} multiline autoAdjustHeight />
-                    <PrimaryButton disabled={sendingMessage} onClick={this.sendMessage}>Send</PrimaryButton>
+                    <Stack horizontal disableShrink styles={{ root: { overflow: 'hidden', width: '100%' } }} tokens={{ childrenGap: 10 }}>
+                        <PrimaryButton styles={{ root: { width: '80%' } }} disabled={sendingMessage} onClick={this.sendMessage}>Send</PrimaryButton>
+                        <DefaultButton styles={{ root: { width: '19%' } }} onClick={this.endSession}>End Session</DefaultButton>
+                    </Stack>
+
                 </Stack>
-
-
             </>
         );
+    }
+
+    private chatStyles(isMyMsg: boolean): IStyleFunctionOrObject<IMessageBarStyleProps, IMessageBarStyles> {
+        const root = {
+            width: "auto",
+            maxWidth: "500px",
+            padding: "5px",
+            borderRadius: "15px",
+            boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
+        };
+
+        return {
+            icon: null,
+            iconContainer: {
+                display: "none"
+            },
+            content: {
+                whiteSpace: "pre-line"
+            },
+            root: isMyMsg ? { ...root, float: "right", marginRight: "10px" } : { ...root, float: "left", marginLeft: "10px" }
+        };
     }
 
     private sendMessage = async () => {
@@ -109,5 +107,10 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
         }
 
         this.setState({ message: "", sendingMessage: false });
+    }
+
+    private endSession = async () => {
+        const { endChatSession } = this.props.appStore;
+        await endChatSession();
     }
 }

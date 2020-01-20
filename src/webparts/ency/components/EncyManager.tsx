@@ -2,7 +2,7 @@ import { inject, observer } from 'mobx-react';
 import * as React from 'react';
 import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
 import { ApplicationStatus } from '../../../stores/AppStore';
-import CreateList from './listcreation/CreateList';
+import ChatSyncSetup from './listcreation/ChatSyncSetup';
 import Chat from './Chat';
 
 @inject(Stores.AppStore, Stores.ConfigurationStore)
@@ -15,14 +15,16 @@ export default class EncyManager extends React.Component<DefaultStoreProps, {}> 
 
     switch (status) {
       case ApplicationStatus.Initializing:
-        return (<div>"Loading..."</div>);
+        return (<p>Loading...</p>);
       case ApplicationStatus.WaitingForParty:
       case ApplicationStatus.CreateList:
         return (
-          <CreateList></CreateList>
+          <ChatSyncSetup></ChatSyncSetup>
         );
       case ApplicationStatus.ChatReady:
         return (<Chat></Chat>);
+      case ApplicationStatus.Completed:
+        return (<p>Chat has ended. Please close this window.</p>);
       default:
         return (<p>Unkown status</p>);
     }

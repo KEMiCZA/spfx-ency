@@ -21,7 +21,6 @@ export default class EncyWebPart extends BaseClientSideWebPart<IEncyWebPartProps
   private readonly dependencies = { rootStore: new RootStore() };
 
   private _listSubscriptionFactory: ListSubscriptionFactory;
-  // private _listSubscription: IListSubscription;
 
   private async createListSubscription(id: string) {
     if (this._listSubscriptionFactory)

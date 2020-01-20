@@ -20,9 +20,9 @@ export enum ApplicationStatus {
 }
 
 export enum ChatInitializationStatus {
-    WaitingForPubKeyFromBob = "Waiting for public key retrieval from party",
-    WaitingForPubKeyFromAlice = "Waiting for public key retrieval by initiator",
-
+    WaitingForPubKey = "Waiting for public key retrieval from party",
+    SendingPublicKey = "Sending public key to party",
+    PublicKeyStored = "Public key stored"
 }
 
 export interface IWebhookItemCreationInfo {
@@ -68,8 +68,10 @@ export interface IMessageUpdateInfo {
 }
 
 export class AppStore {
-    private _encyvalFieldName = "encyval";
-    private _encySenderTypeFieldName = "encytype";
+    private readonly _encyvalFieldName = "encyval";
+    private readonly _encySenderTypeFieldName = "encytype";
+    private readonly _encyEndSessionIdentifierString = "ency-end-session-yo";
+
     private pub: sjcl.SjclElGamalPublicKey;
     private secret: sjcl.SjclElGamalSecretKey;
     private pubEnc: sjcl.SjclElGamalPublicKey;
@@ -96,6 +98,20 @@ export class AppStore {
         return this.configListTitle;
     }
 
+    @computed
+    public get chatSyncPercentage(): number {
+        const isAlice = this.senderType === SenderType.Alice;
+
+        switch (this.chatStatus) {
+            case ChatInitializationStatus.WaitingForPubKey:
+                return isAlice ? 0 : 50;
+            case ChatInitializationStatus.SendingPublicKey:
+                return isAlice ? 50 : 0;
+            case ChatInitializationStatus.PublicKeyStored:
+                return isAlice ? 100 : 100;
+        }
+    }
+
     @action
     private setInitialState(): void {
         this.status = ApplicationStatus.Initializing;
@@ -106,6 +122,16 @@ export class AppStore {
     @action
     public init = async (userDisplayName: string) => {
         this.currentUsersDisplayName = userDisplayName;
+
+        window.onbeforeunload = (e) => {
+            if (this.status === ApplicationStatus.ChatReady) {
+                const dialogText = 'Please end the chat session first before closing the window!';
+                e.returnValue = dialogText;
+                return dialogText;
+            } else {
+                return null;
+            }
+        };
 
         const url = new URL(window.location.href);
         const cid = url?.searchParams?.get("cid");
@@ -141,6 +167,8 @@ export class AppStore {
 
     @action
     public getMessages = async () => {
+        if (this.status === ApplicationStatus.Completed)
+            return;
 
         const list = sp.web.lists.getById(this.configListTitle);
 
@@ -168,8 +196,20 @@ export class AppStore {
                     newMessages.push(msg);
                 });
 
+            const endSession: boolean = newMessages.filter(x => x.message === this._encyEndSessionIdentifierString).length > 0;
+
+            if (endSession) {
+                // List might've been deleted already
+                await sp.web.lists.getById(this.configListTitle).delete();
+            }
+
             runInAction(() => {
-                this.messages = newMessages;
+                if (endSession) {
+                    this.status = ApplicationStatus.Completed;
+                    this.messages = [];
+                } else {
+                    this.messages = newMessages;
+                }
             });
         }
         else {
@@ -182,10 +222,18 @@ export class AppStore {
 
             else if (items.length === 1) {
                 // If we are Alice, we don't need to do anything
-                if (this.senderType === SenderType.Alice)
+                if (this.senderType === SenderType.Alice) {
+                    runInAction(() => {
+                        this.chatStatus = ChatInitializationStatus.WaitingForPubKey;
+                    });
                     return;
+                }
 
                 // If we are Bob we should generate our own public key and send it encrypted back to Alice
+
+                runInAction(() => {
+                    this.chatStatus = ChatInitializationStatus.SendingPublicKey;
+                });
 
                 let pair = sjcl.ecc.elGamal.generateKeys(sjcl.ecc.curves.c256, 1);
                 let pubBob = pair.pub.get();
@@ -218,10 +266,17 @@ export class AppStore {
             }
             else if (items.length === 2) {
                 // If we are Bob, do nothing
-                if (this.senderType === SenderType.Bob)
+                if (this.senderType === SenderType.Bob) {
+                    runInAction(() => {
+                        this.chatStatus = ChatInitializationStatus.WaitingForPubKey;
+                    });
                     return;
+                }
 
                 // If we are Alice we should decrypt the public key of Bob and send a new Encrypted public key to Bob
+                runInAction(() => {
+                    this.chatStatus = ChatInitializationStatus.SendingPublicKey;
+                });
                 const itemResp = await list.items.getById(2).get();
 
                 // In case a race condition where the encyval field has not been updated yet
@@ -257,8 +312,12 @@ export class AppStore {
             }
             else if (items.length === 3) {
                 // If we are Alice don't do anything
-                if (this.senderType === SenderType.Alice)
+                if (this.senderType === SenderType.Alice) {
+                    runInAction(() => {
+                        this.chatStatus = ChatInitializationStatus.PublicKeyStored;
+                    });
                     return;
+                }
 
                 // If we are Bob decrypt Alice's public key and we can start chatting
                 const itemResp = await list.items.getById(3).get();
@@ -278,21 +337,28 @@ export class AppStore {
 
             }
             else if (items.length >= 4) {
-                if (this.senderType === SenderType.Bob)
+                if (this.senderType === SenderType.Bob) {
+                    runInAction(() => {
+                        this.chatStatus = ChatInitializationStatus.PublicKeyStored;
+                    });
                     return;
+                }
 
                 runInAction(() => {
                     this.status = ApplicationStatus.ChatReady;
                     this.currentItemId = 4;
                 });
             }
-
-            // runInAction(() => {
-            //     this.status = items.length >= 4 ? ApplicationStatus.ChatReady : ApplicationStatus.WaitingForParty;
-            //     this.currentItemId = items.length;
-            // });
         }
+    }
 
+    @action
+    public endChatSession = async (): Promise<void> => {
+        await this.sendMessage(this._encyEndSessionIdentifierString);
+        runInAction(() => {
+            this.messages = [];
+            this.status = ApplicationStatus.Completed;
+        });
     }
 
     @action
@@ -321,6 +387,7 @@ export class AppStore {
 
         runInAction(() => {
             this.status = ApplicationStatus.WaitingForParty;
+            this.chatStatus = ChatInitializationStatus.WaitingForPubKey;
             this.configListTitle = chatId;
             this.pub = pair.pub;
             this.secret = pair.sec;
