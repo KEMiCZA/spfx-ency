@@ -41,14 +41,6 @@ This package produces the following:
 * dist/* - the bundled script, along with other resources
 * deploy/* - all resources which should be uploaded to a CDN.
 
-### Build options
-
-gulp clean
-gulp serve --nobrowser
-gulp bundle --ship
-gulp package-solution --ship
-
-
 ### Disclaimer
 
 Use this tool at your own risk.
