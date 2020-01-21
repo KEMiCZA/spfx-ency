@@ -1,6 +1,30 @@
-## spfx-ency
+## SPFx Ency
 
-This is where you include your WebPart documentation.
+An end to end encryption chat webpart.
+
+TODO: Add demonstration GIF
+
+### Reasoning
+
+I've seen in big organisations passwords/accounts/secrets being passed through e-mail or Microsoft Teams.
+These accounts can be global admin accounts and even app registrations that have high level permissions.
+This tool allows you to securely transact messages within your organisation.
+
+I must say the please use this tool at your own risk.
+
+### Limitations
+
+* Currently only works among two parties.
+* Users need permissions to create/remove libraries
+
+### How does it work
+
+* Uses [ecc public key cryptography](https://en.wikipedia.org/wiki/Elliptic-curve_cryptography) for encryption with the [Stanford Javascript Crypto Library library](https://bitwiseshiftleft.github.io/sjcl/)
+* Exchange of information happens with a SharePoint document library where new messages are trigger by the [SharePoint list subscription library](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/subscribe-to-list-notifications)
+
+### Mentions
+
+[Sven Bru](https://twitter.com/svenbru) for testing & feedback
 
 ### Building the code
 
@@ -19,8 +43,7 @@ This package produces the following:
 
 ### Build options
 
-gulp clean - TODO
-gulp test - TODO
-gulp serve - TODO
-gulp bundle - TODO
-gulp package-solution - TODO
+gulp clean
+gulp serve --nobrowser
+gulp bundle --ship
+gulp package-solution --ship
