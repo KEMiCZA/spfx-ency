@@ -24,6 +24,7 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
         sendingMessage: false
     };
 
+    // Used during testing
     private messages: IMessage[] = [
         {
             created: new Date(),
@@ -35,7 +36,7 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
             created: new Date(),
             from: "Person B",
             fromType: SenderType.Alice,
-            message: "Nuffing much majn just chillin world \n what's up my man cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            message: "Nuffing much majn just chillin word \n what's up my man cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
         }
     ];
 
@@ -76,7 +77,7 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
     private chatStyles(isMyMsg: boolean): IStyleFunctionOrObject<IMessageBarStyleProps, IMessageBarStyles> {
         const root = {
             width: "auto",
-            maxWidth: "500px",
+            maxWidth: "800px",
             padding: "5px",
             borderRadius: "15px",
             boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
