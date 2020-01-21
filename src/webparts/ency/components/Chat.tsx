@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
 import { TextField } from 'office-ui-fabric-react/lib/TextField';
 import { PrimaryButton, DefaultButton } from 'office-ui-fabric-react/lib/Button';
-import { Stack, IStackProps, IStackTokens } from 'office-ui-fabric-react/lib/Stack';
+import { Stack, IStackProps } from 'office-ui-fabric-react/lib/Stack';
 import { MessageBar, MessageBarType, IMessageBarStyleProps, IMessageBarStyles } from 'office-ui-fabric-react/lib/MessageBar';
 import { Text } from 'office-ui-fabric-react/lib/Text';
 import { SenderType, IMessage } from '../../../stores/AppStore';
@@ -21,7 +21,8 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
 
     public state = {
         message: "",
-        sendingMessage: false
+        sendingMessage: false,
+        warningMessage: null
     };
 
     // Used during testing
@@ -41,7 +42,7 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
     ];
 
     public render(): React.ReactElement<DefaultStoreProps> {
-        const { message, sendingMessage } = this.state;
+        const { message, sendingMessage, warningMessage } = this.state;
         const { messages, senderType } = this.props.appStore;
 
         // let senderType = SenderType.Alice;
@@ -68,17 +69,23 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
                         <PrimaryButton styles={{ root: { width: '80%' } }} disabled={sendingMessage} onClick={this.sendMessage}>Send</PrimaryButton>
                         <DefaultButton styles={{ root: { width: '19%' } }} onClick={this.endSession}>End Session</DefaultButton>
                     </Stack>
-
+                    {this.warningMsgComponent}
                 </Stack>
             </>
         );
     }
 
+    private get warningMsgComponent() {
+        const { warningMessage } = this.state;
+        return warningMessage ? <MessageBar messageBarType={MessageBarType.warning}>{warningMessage}</MessageBar> : null;
+    }
+
     private chatStyles(isMyMsg: boolean): IStyleFunctionOrObject<IMessageBarStyleProps, IMessageBarStyles> {
         const root = {
             width: "auto",
-            maxWidth: "800px",
+            maxWidth: "70%",
             padding: "5px",
+            margin: "5px",
             borderRadius: "15px",
             boxShadow: "0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19)"
         };
@@ -99,6 +106,13 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
         const { message } = this.state;
         const { sendMessage } = this.props.appStore;
 
+        // Check if the user entered an empty string (TODO: check for special UTF-8 whitespace characters)
+        if (message.trim() === "") {
+            this.setState({ warningMessage: "Please type a message before sending." });
+            setTimeout(() => this.setState({ warningMessage: null }), 2000);
+            return;
+        }
+
         this.setState({ sendingMessage: true });
 
         try {
@@ -108,6 +122,7 @@ export default class Chat extends React.Component<DefaultStoreProps, any> {
         }
 
         this.setState({ message: "", sendingMessage: false });
+
     }
 
     private endSession = async () => {

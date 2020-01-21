@@ -19,7 +19,7 @@
     "group": { "default": "Other" },
     "title": { "default": "Ency" },
     "description": { "default": "Ency description" },
-    "officeFabricIconFontName": "Page",
+    "officeFabricIconFontName": "CannedChat",
     "properties": {
       "description": "Ency"
     }

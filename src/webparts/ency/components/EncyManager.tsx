@@ -26,7 +26,7 @@ export default class EncyManager extends React.Component<DefaultStoreProps, {}> 
       case ApplicationStatus.Completed:
         return (<p>Chat has ended. Please close this window.</p>);
       default:
-        return (<p>Unkown status</p>);
+        return (<p>Unknown status</p>);
     }
   }
 }

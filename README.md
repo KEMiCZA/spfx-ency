@@ -1,8 +1,8 @@
 ## SPFx Ency
 
-An end to end encryption chat webpart.
+An end-to-end encryption SPFx chat webpart.
 
-TODO: Add demonstration GIF
+![alt text](/docs/EncyDemo.gif "Demo of Ency")
 
 ### Reasoning
 
@@ -10,12 +10,12 @@ I've seen in big organisations passwords/accounts/secrets being passed through e
 These accounts can be global admin accounts and even app registrations that have high level permissions.
 This tool allows you to securely transact messages within your organisation.
 
-I must say the please use this tool at your own risk.
 
 ### Limitations
 
-* Currently only works among two parties.
+* Currently only works among two parties
 * Users need permissions to create/remove libraries
+* SharePoint Online only
 
 ### How does it work
 
@@ -47,3 +47,8 @@ gulp clean
 gulp serve --nobrowser
 gulp bundle --ship
 gulp package-solution --ship
+
+
+### Disclaimer
+
+Use this tool at your own risk.
