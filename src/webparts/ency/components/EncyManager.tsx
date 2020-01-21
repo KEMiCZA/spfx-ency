@@ -2,7 +2,7 @@ import { inject, observer } from 'mobx-react';
 import * as React from 'react';
 import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
 import { ApplicationStatus } from '../../../stores/AppStore';
-import ChatSyncSetup from './listcreation/ChatSyncSetup';
+import ChatSyncSetup from './ChatSyncSetup';
 import Chat from './Chat';
 
 @inject(Stores.AppStore, Stores.ConfigurationStore)

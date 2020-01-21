@@ -1,8 +1,8 @@
 import { inject, observer } from 'mobx-react';
 import * as React from 'react';
-import { Stores, DefaultStoreProps } from '../../../../stores/RootStore';
-import { ApplicationStatus, SenderType } from '../../../../stores/AppStore';
-import { CompoundButton, PrimaryButton, IconButton } from 'office-ui-fabric-react/lib/Button';
+import { Stores, DefaultStoreProps } from '../../../stores/RootStore';
+import { ApplicationStatus, SenderType } from '../../../stores/AppStore';
+import { CompoundButton } from 'office-ui-fabric-react/lib/Button';
 import { Text } from 'office-ui-fabric-react/lib/Text';
 import { TextField, ITextField } from 'office-ui-fabric-react/lib/TextField';
 import { ProgressIndicator } from 'office-ui-fabric-react/lib/ProgressIndicator';
